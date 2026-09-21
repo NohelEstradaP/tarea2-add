@@ -1,0 +1,334 @@
+# Curso Libre de Configuraci ́on 2: An ́alisis de Datos
+
+# Tarea 2: N ́umeros Pseudoaleatorios y M ́etodos de
+
+# Monte Carlo
+
+### Facultad de Ingenier ́ıa, Universidad del Istmo de Guatemala
+
+### Fecha de entrega: 19 de septiembre 2025, 11:59PM
+
+## 1 Introducci ́on
+
+En esta ocasi ́on haremos una peque ̃na inmersi ́on en dos mundos: el de los n ́umeros pseu-
+doaleatorios y el de las simulaciones de Monte Carlo. Los n ́umeros pseudoaleatorios son
+esenciales en el estudio de simulaciones de todo tipo, en videojuegos y en criptograf ́ıa.
+Como todos (espero) sabr ́an, las computadoras no son capaces de generar n ́umeros comple-
+tamente aleatorios. Si estamos hablando de un solo n ́umero, un n ́umero aleatorio es aquel
+tomado de un conjunto de posibles valores, cada uno con una probabilidad equitativa, es
+decir, como en una distribuci ́on uniformeX∼Unif(a,b). Cuando hablamos de secuencias
+de n ́umeros aleatorios, tenemos que asegurarnos adem ́as de que estos seanindependientes
+uno del otro.
+
+Los generadores de n ́umeros pseudoaleatorios, o PRNGs por sus siglas en ingl ́es, utilizan algo-
+ritmos o tablas precalculadas para generar secuencias de n ́umeros que parecen ser aleatorios.
+La diferencia entre un PRNG y un TRNG, o un generador de verdaderos aleatorios, puede
+explicarse como los lanzamientos de un dado. Si utilizamos un PRNG, entonces estamos
+obteniendo una lista de los lanzamientos, y solo estamos preguntando cu ́al es el siguiente
+n ́umero en la lista, mientras que un TRNG hace que la computadora “verdaderamente” lance
+el dado. Los PRNGs soneficientes, ya que pueden producir una gran cantidad de n ́umeros
+en una cantidad peque ̃na de tiempo, y tambi ́en sondeterministas, lo cual quiere decir que
+una secuencia en particular puede volverse a producir en cualquier momento si se sabe su
+punto de partida. A su vez, tambi ́en son peri ́odicos, es decir, que la secuencia se repite
+despu ́es de cierto tiempo. Aunque esta no es una caracter ́ıstica deseada en un generador de
+n ́umeros aleatorios, la mayor ́ıa de PRNGs modernos tienen per ́ıodos tan largos (hasta 2^31 − 1
+n ́umeros antes de que la secuencia se repita) que para efectos pr ́acticos no importa [2].
+
+
+### ¿Y esto para qu ́e sirve?
+
+Hay cantidades que son muy f ́aciles dedefinir pero muy dif ́ıciles, o de pr ́acticamente im-
+posibles, decalcular de forma exacta. Piensen en una integral que no tiene antiderivada
+elemental, en el volumen de una regi ́on en 20 dimensiones, en la probabilidad de que un
+sistema complejo falle, o en el valor esperado de una estrategia dentro de un juego. En
+todos esos casos la respuesta existe, pero no hay una f ́ormula cerrada que nos la d ́e, y los
+m ́etodos determin ́ısticos que ya conocen o bien no aplican, o se vuelven prohibitivamente
+caros computacionalmente hablando.
+La idea de Monte Carlo es cambiar el c ́alculo exacto por una estimaci ́on. Si logramos
+escribir la cantidad que buscamos como el valor esperadoE[g(X)] de alguna variable aleato-
+ria, entonces podemos muestrear realizaciones deX(usando nuestros PRNGs) y obtener un
+promedio. La Ley de los Grandes N ́umeros nos garantiza que ese promedio converge al valor
+real, y el Teorema del L ́ımite Central nos dice qu ́e tan r ́apido lo hace.
+Con esta tarea quiero que vean tanto lo que esta idea nos permite hacer como el punto
+donde se rompe. Por un lado, la calidad del estimador depende directamente de la calidad del
+PRNG que lo alimenta, y eso lo van a comprobar ustedes mismos con el caso RANDU. Por
+el otro, el error decae de una forma lenta, pero que no empeora conforme crece la dimensi ́on
+del problema, que es justamente lo que vuelve a Monte Carlo tan ́util en problemas donde
+los dem ́as m ́etodos se quedan cortos.
+
+## 2 Investigaci ́on – Primera parte: Generadores
+
+Nuestra inmersi ́on en el mundo de los n ́umeros pseudoaleatorios consistir ́a en investigar
+acerca de distintos algoritmos generadores de pseudoaleatorios e implementarlos enPython.
+Los algoritmos que deber ́an investigar e implementar son los siguientes:
+
+1. Generadores de congruencia lineal (LCG por sus siglas en ingl ́es)
+2. M ́etodo de cuadrados medios o middle-square method
+3. Mersenne Twister
+4. Blum Blum Shub
+5. RANDU
+
+Para cada algoritmo deber ́an investigar y entregar lo siguiente:
+
+1. Pseudoc ́odigo y fundamento matem ́atico de cada algoritmo.
+2. Tabla comparando la velocidad, per ́ıodo, seguridad y casos de uso de cada algoritmo.
+3. Implementaci ́on de cada algoritmo a partir del pseudoc ́odigo enPython(desde cero;
+    no se permite usarnumpy.randomnirandomcomo el motor del generador).
+
+
+- Para cada implementaci ́on, deber ́an incluir lo siguiente:
+    (a) Histograma mostrando los n ́umeros generados (normalizados a [0,1]).
+(b) Pruebas de hip ́otesis para comprobar uniformidad e independencia de las
+secuencias generadas. Como m ́ınimo necesito dos: una prueba de bondad
+de ajuste para uniformidad (e.g., chi-cuadrado o Kolmog ́orov–Smirnov) y
+una prueba de independencia serial (e.g., autocorrelaci ́on de retardo 1 o una
+prueba de rachas). Para cada una reporten el estad ́ıstico, elp-valor y qu ́e
+significa ese resultado, en una o dos oraciones.
+(c) Prueba espectral visual: para al menos LCG y RANDU, grafiquen ternas
+consecutivas (ui,ui+1,ui+2) como puntos en el cubo [0,1]^3. Comenten qu ́e
+observan y relaci ́onenlo con el per ́ıodo y la calidad de cada generador.
+(d) Comparaci ́on de un algoritmo a su elecci ́on con las librer ́ıas est ́andarrandom
+ysecretsdePython.
+
+Reproducibilidad. Todo generador debe recibir su semilla como argumento y documen-
+tarla. Fijen y reporten las semillas que usaron en cada figura, para que cualquiera pueda
+correr su c ́odigo y obtener el mismo resultado.
+
+## 3 Investigaci ́on – Segunda Parte: Monte Carlo
+
+Una de las aplicaciones m ́as conocidas de los n ́umeros pseudoaleatorios son los m ́etodos de
+Monte Carlo. Los m ́etodos de Monte Carlo se refieren a una amplia clase de algoritmos que
+utilizan el muestreo de n ́umeros aleatorios para resolver problemas que son determin ́ısticos
+en naturaleza, como optimizaci ́on, aproximar integrales o simular distribuciones de proba-
+bilidad.
+
+### 3.1 Fundamento: el estimador y su error
+
+Antes de ponerse a programar, quiero que deriven a mano los siguientes resultados, en su
+documento y con su propia notaci ́on. Citarlos no cuenta:
+
+1. Muestren que la integralI=
+
+```
+Zb
+```
+```
+a
+```
+```
+f(x) dxpuede escribirse comoI= (b−a)E[f(U)] con
+U∼Unif(a,b), y que por lo tanto el estimador:
+```
+```
+IˆN=b−a
+N
+```
+#### XN
+
+```
+i=
+```
+```
+f(Ui)
+```
+```
+esinsesgado, es decir, queE[IˆN] =I.
+```
+2. Deriven la varianza Var(IˆN) y muestren que el error est ́andar del estimador decae
+    comoO(N−^1 /^2 ). Expliquen con sus propias palabras por qu ́e esta tasa no depende de
+    la dimensi ́on del problema.
+
+
+3. Construyan un intervalo de confianza del 95% paraIˆNusando el Teorema del L ́ımite
+    Central. De aqu ́ı en adelante, toda estimaci ́on num ́erica que reporten tiene que venir
+    acompa ̃nada de su intervalo de confianza.
+
+### 3.2 Calentamiento: integrales en una dimensi ́on
+
+Utilicen su estimador de Monte Carlo con realizaciones deX∼Unif(a,b) para aproximar:
+
+```
+(a)
+```
+#### Z 1
+
+```
+0
+```
+```
+sin(πx) dx (b)
+```
+#### Z 2
+
+```
+0
+```
+#### 1
+
+#### √
+
+```
+2 π
+```
+```
+e−x
+```
+(^2) / 2
+dx
+Para cada una:
+
+1. Reporten la estimaci ́on con su intervalo de confianza del 95% y comp ́arenla contra el
+    valor te ́orico real.
+2. Estudio de convergencia.Grafiquen el error absoluto|IˆN−I|contraNen escala log–
+    log, paraNdesde 10^1 hasta al menos 10^6. Ajusten una recta y estimen la pendiente.
+    ¿Les cuadra con la tasa O(N−^1 /^2 ) que derivaron? Si algo se sale de lo esperado,
+    com ́entenlo.
+3. Repitan el c ́alculo usando (i) un generador est ́andar dePythony (ii) uno de los PRNGs
+    que implementaron en la Parte 1. Comparen sus resultados.
+
+### 3.3 Alta dimensi ́on y la maldici ́on de la dimensionalidad
+
+Hasta aqu ́ı Monte Carlo se ve como una manera cara de calcular integrales que ya sab ́ıamos
+resolver. Esta secci ́on es donde eso cambia. Consideren el problema de calcular el volumen
+de la bola unitaria enddimensiones,
+
+```
+Vd= Vol
+```
+#### 
+
+```
+{x∈Rd:∥x∥ 2 ≤ 1 }
+```
+#### 
+
+#### =
+
+#### Z
+
+```
+[− 1 ,1]d
+```
+#### 1
+
+#### 
+
+```
+x^21 +···+x^2 d≤ 1
+```
+#### 
+
+```
+dx,
+```
+que tiene el valor cerrado conocidoVd=πd/^2 /Γ
+
+```
+d
+2 + 1
+```
+#### 
+
+. Ese valor ́usenlo ́unicamente como
+verdad de referencia, no como parte del estimador.
+1. Implementen un estimador de Monte Carlo paraVdmuestreando puntos uniformes en el
+cubo [− 1 ,1]dy contando la fracci ́on que cae dentro de la bola. Reporten la estimaci ́on
+y su intervalo de confianza parad= 2, 5 , 10 ,20.
+2. Comparaci ́on contra cuadratura determin ́ıstica. Implementen tambi ́en una es-
+timaci ́on por rejilla, dividiendo cada eje enmsubintervalos y evaluando el integrando
+en el centro de cada celda. Para un mismo presupuesto de puntos, comparen el error
+de Monte Carlo contra el de la rejilla conformedcrece. Adicionalmente, construyan
+una tabla con el n ́umero de puntos que necesitar ́ıa la rejilla para tenerm= 10 subdi-
+visiones por eje end= 2, 5 , 10 ,20 dimensiones. ¿Qu ́e observan? Relacionen esto con
+el t ́ermino “maldici ́on de la dimensionalidad”.
+
+
+3. Grafiquen la fracci ́on del volumen del cubo que ocupa la bola,Vd/ 2 d, como funci ́on
+    ded. Expliquen qu ́e fen ́omeno geom ́etrico revela esa gr ́afica y qu ́e implica a la hora
+    de dise ̃nar un buen estimador en alta dimensi ́on. En particular, ¿por qu ́e el muestreo
+    uniforme en el cubo se vuelve tan ineficiente?
+
+### 3.4 Reducci ́on de varianza
+
+El error de Monte Carlo decae comoσ/
+
+#### √
+
+N, as ́ı que solo hay dos formas de bajarlo: subirN,
+que es caro, o bajarσ, que es mucho m ́as interesante. Investiguen e implementen al menos
+dos de las siguientes t ́ecnicas, aplic ́andolas a la integral (a) o (b) de la secci ́on 3.2:
+
+- Variables antit ́eticas (antithetic variates)
+- Muestreo por importancia (importance sampling)
+- Variables de control (control variates)
+
+Para cada t ́ecnica expliquen el fundamento matem ́atico, implem ́entenla y cuantifiquen la
+reducci ́on de varianza que lograron. Reporten el factor de reducci ́on, es decir, la raz ́on de
+varianzas respecto a Monte Carlo simple con el mismoN, y el “speedup efectivo” equivalente
+en n ́umero de muestras. ¿La t ́ecnica siempre ayuda o depende del integrando? Justifiquen
+su respuesta.
+
+### 3.5 Cuando el generador arruina el resultado: el caso RANDU
+
+RANDU es un generador hist ́oricamente famoso por lo malo que result ́o ser: sus ternas
+consecutivas caen sobre un n ́umero peque ̃no de hiperplanos dentro del cubo [0,1]^3 [1]. En
+esta secci ́on van a reproducir esa falla y diagnosticarla.
+
+1. Usen su implementaci ́on de RANDU como fuente de aleatoriedad para estimar por
+    Monte Carlo alguna cantidad que dependa de verdad de ternas (x,y,z) en 3D. Por
+    ejemplo, el volumen de la bola unitaria end= 3 o la integral
+
+#### ZZZ
+
+```
+[0,1]^3
+```
+```
+1 [x^2 +y^2 +z^2 ≤
+```
+```
+1 ] dxdydz.
+```
+2. Repitan la misma estimaci ́on usando el Mersenne Twister (orandomest ́andar).
+3. Comparen ambos estimadores contra el valor real. Documenten la diferencia y, apoy ́andose
+    en la gr ́afica de ternas en 3D, expliquen geom ́etricamente por qu ́e RANDU produce
+    un sesgo o una convergencia rara mientras que el buen generador no. Conecten esto
+    expl ́ıcitamente con la prueba espectral de la Parte 1.
+
+La moraleja que quiero que articulen en su an ́alisis es sencilla: un m ́etodo de Monte Carlo
+nunca va a ser mejor que su fuente de aleatoriedad.
+
+
+## 4 Entregables
+
+A Blackboard deber ́an subir ́unicamente el link a un repositorio de GitHub conteniendo sus
+soluciones. En el repositorio deber ́an incluir lo siguiente:
+
+- Documento en.pdfy c ́odigo.texcon su investigaci ́on de las partes 1 y 2 y el an ́alisis
+    de los resultados obtenidos. El documento debe contener las derivaciones a mano de la
+    secci ́on 3.1, todas las figuras (histogramas, pruebas espectrales, gr ́aficas de convergencia
+    log–log, gr ́afica deVd/ 2 d), las tablas comparativas y los intervalos de confianza de cada
+    estimaci ́on.
+- Archivos.pycon las implementaciones de los PRNGs y de los m ́etodos de Monte Carlo.
+    El c ́odigo debe correr de principio a fin y reproducir las figuras del documento a partir
+    de las semillas documentadas.
+- UnREADME.mdcorto explicando c ́omo ejecutar el c ́odigo.
+
+## Recordatorio
+
+La pol ́ıtica de entregas tarde indica que tienen 2 d ́ıas de gracia para entregar con el 80% de
+la nota y 50% despu ́es de este per ́ıodo.El uso indebido e irresponsable de asistentes
+de IA/LLMs resultar ́a en 0 y reporte con el Consejo de Facultad. Recuerden
+que las derivaciones a mano, el estudio de convergencia con sus propias semillas y el an ́alisis
+interpretativo son individuales: deben poder explicarme y defender oralmente cualquier parte
+de su entrega.
+
+## Referencias
+
+[1] George Marsaglia. “Random Numbers Fall Mainly in the Planes”. In:Proceedings of the
+National Academy of Sciences61.1 (1968), pp. 25–28.doi:10.1073/pnas.61.1.25.
+
+[2] RANDOM.ORG.Introduction to Randomness and Random Numbers.url:https://
+[http://www.random.org/randomness/(visited](http://www.random.org/randomness/(visited) on 09/01/2025).
+
+
