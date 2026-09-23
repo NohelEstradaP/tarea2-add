@@ -151,6 +151,7 @@ Para esta tarea se usaron los primos $p=300007$ y $q=300163$ (ambos $\equiv 3 \b
 Se obtuvo $\chi^2=29.66$, $p=0.056$ para uniformidad (justo por encima del umbral usual de 0.05) y $r=0.0174$, $p=0.083$ para independencia serial: no hay evidencia fuerte de desviación de la uniformidad ni de dependencia serial, aunque el $p$-valor de uniformidad queda cerca del límite.
 
 \subsection{RANDU}
+\label{sec:randu-generador}
 
 RANDU es un caso particular de LCG con $a=65539=2^{16}+3$, $c=0$ y $m=2^{31}$, usado en las computadoras IBM System/360 durante los años sesenta. Es históricamente célebre por lo mal elegido de su multiplicador.
 
@@ -388,5 +389,42 @@ La idea es restar de $f(U)$ un múltiplo de una variable $g(U)$ de media conocid
 \subsection{¿Siempre ayuda, o depende del integrando?}
 
 Los cuatro experimentos responden la pregunta de forma inequívoca: depende por completo del integrando y de qué tan bien elegida esté la técnica para su forma particular. Variables antitéticas solo funciona cuando $f$ tiene la simetría correcta (monotonía en el intervalo, como en (b)); aplicada a una función simétrica alrededor del punto medio del intervalo, como (a), el par antitético es redundante y el método empeora el desempeño respecto a Monte Carlo simple. Variables de control solo ayuda si se elige un control realmente correlacionado con el integrando: un control lineal simple no sirvió de nada para (a), mientras que un control con la forma correcta (una joroba simétrica) redujo la varianza en más de dos órdenes de magnitud. La lección práctica es que ninguna de estas técnicas es una mejora automática: hay que entender la forma del integrando antes de elegir cuál aplicar, y una elección descuidada puede incluso ser contraproducente.
+
+\section{Cuando el generador arruina el resultado: el caso RANDU}
+\label{sec:randu}
+
+Se usó la implementación propia de RANDU para estimar por Monte Carlo la integral que da el enunciado, $\iiint_{[0,1]^3} \mathbf{1}[x^2+y^2+z^2\le 1]\,dV$, cuyo valor real es $\pi/6 \approx 0.523599$, agrupando el flujo de valores de RANDU en ternas consecutivas sin traslape $(u_{3i}, u_{3i+1}, u_{3i+2})$. Se repitió exactamente el mismo experimento con el Mersenne Twister propio, con $N=1{,}000{,}000$ ternas en ambos casos.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Generador & Estimado & IC 95\% & Error absoluto \\
+\midrule
+RANDU & 0.523233 & (0.522254, 0.524212) & 0.000366 \\
+Mersenne Twister & 0.522841 & (0.521862, 0.523820) & 0.000758 \\
+\bottomrule
+\end{tabular}
+\caption{Estimación de $\pi/6$ con $N=1{,}000{,}000$ ternas, valor real $0.523599$.}
+\end{table}
+
+El resultado es, a primera vista, contraintuitivo: en esta corrida particular RANDU no solo no fue peor que Mersenne Twister, sino que su error absoluto resultó incluso menor. Esto no contradice lo que se documentó en la Sección \ref{sec:randu-generador}: la razón es que el volumen de una bola es una cantidad simétrica bajo rotaciones, y la falla geométrica de RANDU (que sus ternas caigan sobre unos 15 hiperplanos en vez de llenar el cubo) no necesariamente sesga el conteo de cuántas de esas ternas caen dentro de una esfera centrada en el origen, porque cada uno de esos planos todavía cruza la esfera y aporta puntos de ambos lados de su frontera. Dicho de otro modo: no toda cantidad calculada con Monte Carlo es igualmente sensible a la falta de independencia entre coordenadas consecutivas.
+
+Para exhibir la falla de manera inequívoca hay que mirar la estructura de las ternas directamente, no un resumen numérico que puede resultar insensible a ella. Se calculó, para cada terna $(u_i,u_{i+1},u_{i+2})$, la distancia de $9u_i - 6u_{i+1} + u_{i+2}$ al entero más cercano (recordando de la Sección \ref{sec:randu-generador} que esta expresión debe ser exactamente un entero $k$ para RANDU, por construcción):
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Generador & Distancia media al entero más cercano & Distancia máxima \\
+\midrule
+RANDU & 0.0000000000 & 0.0000000000 \\
+Mersenne Twister & 0.249992 & 0.499992 \\
+\bottomrule
+\end{tabular}
+\caption{Distancia de $9u_i-6u_{i+1}+u_{i+2}$ al entero más cercano, sobre 100{,}000 ternas.}
+\end{table}
+
+La diferencia es absoluta: las $100{,}000$ ternas de RANDU caen \emph{exactamente} sobre esos hiperplanos, sin ninguna desviación más allá del error de redondeo de punto flotante, mientras que en Mersenne Twister la misma expresión se comporta como una variable continua genuina, con una distancia promedio al entero más cercano de $0.25$ (justo lo que se espera si la parte fraccionaria de esa combinación lineal fuera uniforme). Esta es la prueba espectral de la Sección \ref{sec:randu-generador}, pero convertida en un número: no es que RANDU tienda a caer cerca de esos planos, es que cae sobre ellos con precisión exacta, siempre. La moraleja de esta tarea es sencilla y la confirma tanto la Parte 1 como este experimento: un método de Monte Carlo nunca va a ser mejor que su fuente de aleatoriedad, aunque el daño que haga esa fuente defectuosa no siempre sea visible en la primera cantidad que uno decida calcular con ella. Por eso la prueba espectral —revisar la estructura geométrica del generador directamente, no solo el resultado final de una aplicación particular— es indispensable antes de confiar en cualquier PRNG para simulación.
 
 \end{document}
