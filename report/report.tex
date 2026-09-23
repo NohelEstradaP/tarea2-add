@@ -225,4 +225,66 @@ Mersenne Twister propio & 0.157 & 21.93 & 0.288 \\
 
 La versión de \texttt{random} de la librería estándar es unas 15 veces más rápida que la implementación propia porque su ciclo interno está escrito en C, mientras que la nuestra corre en Python puro instrucción por instrucción. \texttt{secrets} resulta el más lento de los tres, un costo esperado: para ser criptográficamente seguro no puede depender de un estado interno predecible como el de un Mersenne Twister, así que consulta al sistema operativo en cada llamada. El $p$-valor bajo de \texttt{secrets} en esta corrida particular no indica ningún defecto real, es simplemente la variabilidad normal de una prueba de hipótesis: repitiendo el experimento con otra semilla del sistema el resultado cambia.
 
+\section{Fundamento de Monte Carlo: el estimador y su error}
+
+\subsection{Insesgadez del estimador}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth,height=0.8\textheight,keepaspectratio]{figures/derivaciones/insesgadez.jpg}
+\caption{Derivación a mano de $I=(b-a)\mathbb{E}[f(U)]$ y de $\mathbb{E}[\hat I_N]=I$.}
+\end{figure}
+
+\subsection{Varianza del estimador y tasa de convergencia}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth,height=0.8\textheight,keepaspectratio]{figures/derivaciones/varianza.jpg}
+\caption{Derivación a mano de $\mathrm{Var}(\hat I_N)$ y de por qué el error estándar decae como $O(N^{-1/2})$.}
+\end{figure}
+
+Esta tasa no depende de la dimensión del problema porque la Ley de los Grandes Números y el Teorema del Límite Central se aplican sobre el promedio de variables aleatorias escalares $f(U_i)$, sin importar de qué espacio provienen los $U_i$: lo único que entra en la varianza del estimador es $\mathrm{Var}(f(U))$, un solo número real, nunca la dimensión de $U$. Un integrando en $d=20$ dimensiones tiene exactamente la misma tasa $O(N^{-1/2})$ que uno en $d=1$; lo que cambia con $d$ es qué tan grande es esa varianza, no la forma en que decae con $N$. Esta observación es la que hace útil a Monte Carlo en la Sección \ref{sec:altadim}: los métodos de cuadratura determinística sí empeoran con la dimensión, Monte Carlo no.
+
+\subsection{Intervalo de confianza del 95\%}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth,height=0.8\textheight,keepaspectratio]{figures/derivaciones/intervalo.jpg}
+\caption{Construcción del intervalo de confianza del 95\% para $\hat I_N$ usando el TLC.}
+\end{figure}
+
+De aquí en adelante todo estimador Monte Carlo reportado en este documento viene acompañado de su intervalo de confianza del 95\%, calculado como $\hat I_N \pm 1.96 \cdot \widehat{\mathrm{ee}}(\hat I_N)$, con $\widehat{\mathrm{ee}}(\hat I_N)$ el error estándar estimado a partir de la muestra.
+
+\section{Calentamiento: integrales en una dimensión}
+
+Se implementó el estimador de la sección anterior en \texttt{src/montecarlo/estimator.py} y se aplicó a las dos integrales del enunciado, muestreando $U\sim\mathrm{Unif}(a,b)$ con la semilla $20250922$.
+
+\subsection{Integral (a): $\int_0^1 \sin(\pi x)\,dx$}
+
+El valor real es $2/\pi \approx 0.636620$. Con $N=1{,}000{,}000$ se obtuvo $\hat I_N = 0.636421$, con intervalo de confianza del 95\% $(0.635817,\ 0.637024)$, que en efecto contiene el valor real. El error absoluto fue de apenas $0.000199$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/convergencia_a.png}
+\caption{Error absoluto $|\hat I_N - I|$ contra $N$ en escala log-log, integral (a).}
+\end{figure}
+
+El ajuste de una recta a $\log_{10}|\hat I_N - I|$ contra $\log_{10} N$ dio una pendiente de $-0.454$, cercana a la tasa teórica $-1/2$ derivada en la Sección anterior. La diferencia con $-0.5$ exacto es simplemente ruido de una sola trayectoria: el error absoluto de una corrida particular no decae monótonamente, oscila alrededor de la tendencia $O(N^{-1/2})$, y una pendiente ajustada sobre una sola realización rara vez da exactamente $-0.5$.
+
+\subsection{Integral (b): $\int_0^2 \frac{1}{\sqrt{2\pi}} e^{-x^2/2}\,dx$}
+
+El valor real es $\Phi(2)-\Phi(0) \approx 0.477250$. Con $N=1{,}000{,}000$ se obtuvo $\hat I_N = 0.477237$, IC 95\% $(0.476786,\ 0.477689)$, error absoluto $0.000013$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/convergencia_b.png}
+\caption{Error absoluto $|\hat I_N - I|$ contra $N$ en escala log-log, integral (b).}
+\end{figure}
+
+Aquí la pendiente ajustada fue $-0.493$, todavía más cercana a $-1/2$. Ambos casos confirman empíricamente la tasa de convergencia derivada analíticamente.
+
+\subsection{Comparación entre generadores}
+
+Las dos figuras anteriores incluyen, además del generador \texttt{random} estándar de Python, la misma integral estimada con el LCG propio de la Parte 1 (Sección 1.1), usando en cada punto $N$ un bloque nuevo de valores de esa misma secuencia. Las dos curvas de error son estadísticamente indistinguibles entre sí y ambas siguen la tendencia $O(N^{-1/2})$: para una integral de buen comportamiento en una dimensión, un LCG con parámetros razonables rinde tan bien como el generador de la librería estándar. La diferencia entre generadores solo se vuelve relevante cuando el generador tiene defectos estructurales serios, como se ve con RANDU en la Sección \ref{sec:randu}.
+
 \end{document}
