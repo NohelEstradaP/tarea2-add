@@ -236,6 +236,7 @@ La versión de \texttt{random} de la librería estándar es unas 15 veces más r
 \end{figure}
 
 \subsection{Varianza del estimador y tasa de convergencia}
+\label{sec:varianza}
 
 \begin{figure}[H]
 \centering
@@ -246,6 +247,7 @@ La versión de \texttt{random} de la librería estándar es unas 15 veces más r
 Esta tasa no depende de la dimensión del problema porque la Ley de los Grandes Números y el Teorema del Límite Central se aplican sobre el promedio de variables aleatorias escalares $f(U_i)$, sin importar de qué espacio provienen los $U_i$: lo único que entra en la varianza del estimador es $\mathrm{Var}(f(U))$, un solo número real, nunca la dimensión de $U$. Un integrando en $d=20$ dimensiones tiene exactamente la misma tasa $O(N^{-1/2})$ que uno en $d=1$; lo que cambia con $d$ es qué tan grande es esa varianza, no la forma en que decae con $N$. Esta observación es la que hace útil a Monte Carlo en la Sección \ref{sec:altadim}: los métodos de cuadratura determinística sí empeoran con la dimensión, Monte Carlo no.
 
 \subsection{Intervalo de confianza del 95\%}
+\label{sec:ic}
 
 \begin{figure}[H]
 \centering
@@ -256,6 +258,7 @@ Esta tasa no depende de la dimensión del problema porque la Ley de los Grandes 
 De aquí en adelante todo estimador Monte Carlo reportado en este documento viene acompañado de su intervalo de confianza del 95\%, calculado como $\hat I_N \pm 1.96 \cdot \widehat{\mathrm{ee}}(\hat I_N)$, con $\widehat{\mathrm{ee}}(\hat I_N)$ el error estándar estimado a partir de la muestra.
 
 \section{Calentamiento: integrales en una dimensión}
+\label{sec:integrales1d}
 
 Se implementó el estimador de la sección anterior en \texttt{src/montecarlo/estimator.py} y se aplicó a las dos integrales del enunciado, muestreando $U\sim\mathrm{Unif}(a,b)$ con la semilla $20250922$.
 
@@ -286,5 +289,104 @@ Aquí la pendiente ajustada fue $-0.493$, todavía más cercana a $-1/2$. Ambos 
 \subsection{Comparación entre generadores}
 
 Las dos figuras anteriores incluyen, además del generador \texttt{random} estándar de Python, la misma integral estimada con el LCG propio de la Parte 1 (Sección 1.1), usando en cada punto $N$ un bloque nuevo de valores de esa misma secuencia. Las dos curvas de error son estadísticamente indistinguibles entre sí y ambas siguen la tendencia $O(N^{-1/2})$: para una integral de buen comportamiento en una dimensión, un LCG con parámetros razonables rinde tan bien como el generador de la librería estándar. La diferencia entre generadores solo se vuelve relevante cuando el generador tiene defectos estructurales serios, como se ve con RANDU en la Sección \ref{sec:randu}.
+
+\section{Alta dimensión y la maldición de la dimensionalidad}
+\label{sec:altadim}
+
+Se implementó un estimador Monte Carlo para el volumen de la bola unitaria $V_d$ en $d$ dimensiones, muestreando puntos uniformes en el cubo $[-1,1]^d$ con el LCG propio y contando la fracción que cae dentro de la bola. Como referencia se usó el valor cerrado $V_d = \pi^{d/2}/\Gamma(d/2+1)$, y como contraparte determinística se implementó una cuadratura por rejilla, evaluando el indicador en el centro de cada celda de una malla de $m$ subdivisiones por eje, con $m=\lfloor N^{1/d}\rfloor$ para igualar aproximadamente el presupuesto de puntos $N=1{,}000{,}000$ entre ambos métodos.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccc}
+\toprule
+$d$ & $V_d$ real & Estimado MC (IC 95\%) & Error absoluto MC \\
+\midrule
+2 & 3.14159 & 3.14244 $\ (3.13922,\ 3.14566)$ & 0.000847 \\
+5 & 5.26379 & 5.26288 $\ (5.23963,\ 5.28613)$ & 0.000909 \\
+10 & 2.55016 & 2.46374 $\ (2.36542,\ 2.56207)$ & 0.086420 \\
+20 & 0.025807 & 0.000000 $\ (0,\ 3.14573)$ & 0.025807 \\
+\bottomrule
+\end{tabular}
+\caption{Estimación Monte Carlo de $V_d$ con $N=1{,}000{,}000$ puntos, semilla base $20250923$.}
+\end{table}
+
+En $d=20$ no se registró ni un solo acierto: de los $10^6$ puntos muestreados, se esperaban en promedio $N \cdot V_{20}/2^{20} \approx 1{,}000{,}000 \times 2.46\times 10^{-8} \approx 0.025$ aciertos, así que obtener cero es exactamente lo esperado, no una falla del código. Con cero aciertos el intervalo de confianza normal de la Sección \ref{sec:ic} degenera (varianza estimada cero), así que se reporta en su lugar una cota superior aproximada con la regla de tres, $3/N$, escalada por $2^d$.
+
+\subsection{Comparación contra cuadratura determinística}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+$d$ & $m$ (rejilla) & Puntos rejilla & Estimado rejilla & Error absoluto rejilla \\
+\midrule
+2 & 1000 & 1{,}000{,}000 & 3.14182 & 0.000231 \\
+5 & 16 & 1{,}048{,}576 & 5.31152 & 0.047734 \\
+10 & 4 & 1{,}048{,}576 & 1.00000 & 1.550160 \\
+20 & 2 & 1{,}048{,}576 & 0.00000 & 0.025807 \\
+\bottomrule
+\end{tabular}
+\caption{Cuadratura por rejilla con presupuesto de puntos comparable al de Monte Carlo.}
+\end{table}
+
+Con un presupuesto de puntos similar, la rejilla le gana a Monte Carlo en $d=2$ (su error es casi 4 veces menor), pero para $d=5$ ya es Monte Carlo el que gana claramente, y para $d=10$ la rejilla es catastrófica: con solo $m=4$ subdivisiones por eje, la malla es tan gruesa que ni siquiera logra resolver la curvatura de la esfera y termina estimando el volumen de un solo cubito central, muy lejos del valor real. En $d=20$ ambos métodos fallan por completo con este presupuesto, pero por razones distintas: la rejilla porque $m=2$ es una resolución absurda para captar una esfera, y Monte Carlo porque la probabilidad de acierto es demasiado baja para el número de muestras disponible.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+$d$ & Puntos necesarios en rejilla ($m=10$) \\
+\midrule
+2 & 100 \\
+5 & 100{,}000 \\
+10 & 10{,}000{,}000{,}000 \\
+20 & 100{,}000{,}000{,}000{,}000{,}000{,}000 \\
+\bottomrule
+\end{tabular}
+\caption{Número de puntos $m^d$ que necesitaría la rejilla para mantener 10 subdivisiones por eje.}
+\end{table}
+
+El número de puntos de la rejilla crece como $m^d$: exponencial en la dimensión. Mantener una resolución fija de 10 subdivisiones por eje es factible en $d=2$ (cien puntos) pero ya es completamente inalcanzable en $d=20$ ($10^{20}$ puntos, más que cualquier cómputo razonable podrá evaluar jamás). Esta es la esencia de la maldición de la dimensionalidad: los métodos que discretizan cada eje por separado sufren un costo que se multiplica, no se suma, con cada dimensión nueva. Monte Carlo, en cambio, mantiene su tasa de error $O(N^{-1/2})$ sin importar $d$ (Sección \ref{sec:varianza}), lo que explica por qué termina siendo la única opción viable en dimensiones altas, aun cuando su desempeño relativo en $d=2$ sea mediocre frente a una rejilla fina.
+
+\subsection{Por qué el muestreo uniforme se vuelve ineficiente}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/fraccion_volumen.png}
+\caption{Fracción del volumen del cubo $[-1,1]^d$ ocupada por la bola unitaria, $V_d/2^d$, en escala logarítmica.}
+\end{figure}
+
+La fracción $V_d/2^d$ decae exponencialmente con $d$: en $d=2$ la bola todavía ocupa un 79\% del cuadrado, pero en $d=20$ ocupa apenas $2.46\times 10^{-8}$ del cubo. Esto revela que, en alta dimensión, casi todo el volumen de un hipercubo vive cerca de sus esquinas y muy lejos del centro: la masa se concentra en las "puntas" del cubo, una manifestación geométrica directa de la maldición de la dimensionalidad. Para un estimador Monte Carlo esto es letal si se muestrea ingenuamente en el cubo entero, porque la enorme mayoría de los puntos generados caen en la región irrelevante (fuera de la bola) y aportan cero información sobre la cantidad que se quiere medir; se necesitan cantidades astronómicas de muestras para obtener siquiera unos pocos aciertos útiles. Esta es precisamente la motivación detrás de las técnicas de reducción de varianza y de muestreo por importancia: en vez de muestrear a ciegas donde casi nunca hay señal, conviene concentrar el muestreo donde el integrando realmente aporta.
+
+\section{Reducción de varianza}
+
+El error de Monte Carlo decae como $\sigma/\sqrt N$, así que además de aumentar $N$ la única otra vía es reducir $\sigma$. Se implementaron y compararon dos técnicas, variables antitéticas y variables de control, aplicadas a las integrales de la Sección \ref{sec:integrales1d}, usando en todos los casos $N=2{,}000{,}000$ muestras uniformes con semilla $20250924$.
+
+\subsection{Variables antitéticas}
+
+La idea es reemplazar cada muestra $U_i$ por el promedio $Y_i = \tfrac{1}{2}\big(f(U_i) + f(a+b-U_i)\big)$: si $f(U)$ y $f(a+b-U)$ están negativamente correlacionadas, promediarlas reduce la varianza. Comparando a igualdad de número total de evaluaciones de $f$ ($N$ evaluaciones simples contra $N/2$ pares), el factor de reducción de varianza es $\mathrm{Var}(f(U)) / \big(2\,\mathrm{Var}(Y)\big)$.
+
+Para la integral (a), $f(x)=\sin(\pi x)$ en $[0,1]$, el par antitético es $x$ y $1-x$, y como $\sin(\pi(1-x)) = \sin(\pi x)$ exactamente, ambos miembros del par valen siempre lo mismo: $Y_i = f(U_i)$ sin ninguna reducción de varianza, solo el doble de costo. El experimento lo confirma: $\mathrm{Var}(f(U)) = 0.094657$ y $\mathrm{Var}(Y) = 0.094657$ (idénticas), dando un factor de reducción de $0.5$, es decir, antitéticas resulta \emph{el doble de caro} que Monte Carlo simple para la misma precisión en este caso.
+
+Para la integral (b), $f$ es la densidad normal estándar en $[0,2]$, monótona decreciente en ese intervalo. Aquí el par antitético $x, 2-x$ sí está negativamente correlacionado: $\mathrm{Var}(f(U))=0.013253$ contra $\mathrm{Var}(Y)=0.0000182$, dando un factor de reducción de $363$, equivalente a necesitar 363 veces menos muestras para el mismo error con Monte Carlo simple.
+
+\subsection{Variables de control}
+
+La idea es restar de $f(U)$ un múltiplo de una variable $g(U)$ de media conocida $\mu_g$: el estimador controlado $H = f(U) - c(g(U)-\mu_g)$ sigue siendo insesgado para cualquier $c$, y con $c^* = \mathrm{Cov}(f,g)/\mathrm{Var}(g)$ se minimiza $\mathrm{Var}(H) = \mathrm{Var}(f) - \mathrm{Cov}(f,g)^2/\mathrm{Var}(g)$. Se probaron dos controles para la integral (a):
+
+\begin{itemize}
+\item $g(x)=x$, con $\mu_g=0.5$: la correlación muestral con $\sin(\pi x)$ resultó $-0.0002$, esencialmente cero (tiene sentido: $\sin(\pi x)$ es simétrico alrededor de $x=0.5$ mientras que $x$ es una función lineal creciente, así que no hay relación lineal entre ambas). El factor de reducción fue $1.0000$: este control no ayuda en absoluto.
+\item $g(x)=x(1-x)$, con $\mu_g=1/6$: esta función también es una joroba simétrica que se anula en los extremos, con una forma mucho más parecida a $\sin(\pi x)$. La correlación muestral resultó $0.9984$, casi perfecta, y el factor de reducción fue $318$.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/reduccion_varianza.png}
+\caption{Factor de reducción de varianza logrado por cada técnica (escala logarítmica; la línea punteada marca el punto de equilibrio con Monte Carlo simple).}
+\end{figure}
+
+\subsection{¿Siempre ayuda, o depende del integrando?}
+
+Los cuatro experimentos responden la pregunta de forma inequívoca: depende por completo del integrando y de qué tan bien elegida esté la técnica para su forma particular. Variables antitéticas solo funciona cuando $f$ tiene la simetría correcta (monotonía en el intervalo, como en (b)); aplicada a una función simétrica alrededor del punto medio del intervalo, como (a), el par antitético es redundante y el método empeora el desempeño respecto a Monte Carlo simple. Variables de control solo ayuda si se elige un control realmente correlacionado con el integrando: un control lineal simple no sirvió de nada para (a), mientras que un control con la forma correcta (una joroba simétrica) redujo la varianza en más de dos órdenes de magnitud. La lección práctica es que ninguna de estas técnicas es una mejora automática: hay que entender la forma del integrando antes de elegir cuál aplicar, y una elección descuidada puede incluso ser contraproducente.
 
 \end{document}
